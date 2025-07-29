@@ -1,7 +1,8 @@
 import feedparser
 from pymongo import MongoClient
 from datetime import datetime
-
+import schedule
+import time
 import sys
 import io
 
@@ -46,7 +47,22 @@ def crawl_rss(rss_url, collection, source_name):
         collection.insert_one(doc)
         print(f"[+] Saved to {collection.name}: {entry.title}")
 
-# 전체 수집 실행
-for category, rss_url in RSS_FEEDS.items():
-    collection = db[category]
-    crawl_rss(rss_url, collection, "Maeil Economy")
+# 주기적으로 전체 수집
+def scheduled_job():
+    print(f"\n[!] Running scheduled job at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    for category, rss_url in RSS_FEEDS.items():
+        collection = db[category]
+        collection.delete_many({})  # 기존 데이터 삭제
+        print(f"[~] Cleared collection: {collection.name}")
+        crawl_rss(rss_url, collection, "Chosun Ilbo")
+
+# 1분마다 실행
+schedule.every(1).minutes.do(scheduled_job)
+
+# 처음 시작 시 한 번 실행
+scheduled_job()
+
+# 무한 루프 (스케줄러 동작)
+while True:
+    schedule.run_pending()
+    time.sleep(1)
